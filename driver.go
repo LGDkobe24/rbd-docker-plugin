@@ -865,6 +865,7 @@ func (d *cephRBDVolumeDriver) renameRBDImage(pool, name, newname string) error {
 		"--id", d.user,
 		"--pool", pool,
 		name,
+		"--dest-pool", pool,
 		newname,
 	)
 	if err != nil {
