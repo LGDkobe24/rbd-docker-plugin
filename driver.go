@@ -321,6 +321,11 @@ func (d cephRBDVolumeDriver) Mount(r dkvolume.Request) dkvolume.Response {
 		log.Printf("WARN: unable to detect RBD Image(%s) fstype: %s", name, err)
 		// NOTE: don't fail - FOR NOW we will assume default plugin fstype
 		fstype = *defaultImageFSType
+		err = d.mkfsDevice(device, fstype)
+		if err != nil {
+			defer d.unlockImage(pool, name, locker)
+			return dkvolume.Response{Err: "Unable to mkfs device"}
+		}
 	}
 
 	// check for mountdir - create if necessary
@@ -889,6 +894,18 @@ func (d *cephRBDVolumeDriver) deviceType(device string) (string, error) {
 	} else {
 		return "", errors.New("Unable to determine device fs type from blkid")
 	}
+}
+
+func (d *cephRBDVolumeDriver) mkfsDevice(device string, fstype string) error {
+	// check that fs is valid type (needs mkfs.fstype in PATH)
+	mkfs, err := exec.LookPath("mkfs." + fstype)
+	if err != nil {
+		msg := fmt.Sprintf("Unable to find mkfs for %s in PATH: %s", fstype, err)
+		return errors.New(msg)
+	}
+	// make the filesystem
+	_, err = sh(mkfs, device)
+	return err
 }
 
 // mountDevice will call mount on kernel device with a docker volume subdirectory
